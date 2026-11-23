@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Mon certificat</title>
+<style>
+:root{--bg:#f3f5fb;--card:#fff;--ink:#1b2340;--mute:#4a5370;--line:#c9cfe0;--gold:#e0b100;--err:#b00020;--ok:#1b7f3b}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121624;--card:#1d2336;--ink:#e8ebf5;--mute:#a9b1c9;--line:#3a425c;--err:#ff8a9c;--ok:#6fd08f}}
+:root[data-theme="dark"]{--bg:#121624;--card:#1d2336;--ink:#e8ebf5;--mute:#a9b1c9;--line:#3a425c;--err:#ff8a9c;--ok:#6fd08f}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:640px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:1.5rem;margin:0 0 6px}
+.carte{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-top:16px}
+.btn{display:inline-block;padding:10px 16px;border:0;border-radius:8px;background:var(--ink);color:var(--card);font:600 1rem system-ui,sans-serif;cursor:pointer;text-decoration:none}
+.choix{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;color:var(--ink);background:var(--card)}
+.mute{color:var(--mute)}.err{color:var(--err)}.ok{color:var(--ok)}
+</style>
+</head>
+<body>
+<main>
+  <h1>📜 Mon certificat de réussite</h1>
+  <p class="mute">Le certificat d’un niveau se débloque quand tu as obtenu le badge de chacun de ses chapitres (score suffisant au QCM de la fiche).</p>
+  <div id="zone" class="carte">
+    <p>Choisis ton niveau :</p>
+    <div class="choix"><button class="btn" data-n="terminale" type="button">Terminale</button><button class="btn" data-n="premiere" type="button">Première</button></div>
+    <div id="msg" style="margin-top:12px"></div>
+  </div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+(function(){
+"use strict";
+var API="https://script.google.com/macros/s/AKfycbwEoUjW-6yFBMTPgIItsZAgeQWitiPBlH6GVbw0-LC__bY2452rpO-5m_yfslA-EbV4dQ/exec",NOMS={premiere:"Première spécialité physique-chimie",terminale:"Terminale spécialité physique-chimie"};
+var zone=document.getElementById("zone"),code=null;try{code=localStorage.getItem("mlsCode");}catch(e){}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function msg(t,cls){var m=document.getElementById("msg");m.className=cls||"";m.innerHTML=t;}
+if(!code){zone.innerHTML='<p>Ouvre d’abord une fiche avec ton code d’accès.</p><a class="btn" href="../">Voir les fiches</a>';return;}
+[].forEach.call(document.querySelectorAll("[data-n]"),function(b){b.onclick=function(){
+  msg("Vérification de tes badges…");
+  fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"certificat",code:code,niveau:b.getAttribute("data-n")})})
+  .then(function(r){return r.json();}).then(function(r){
+    if(!r.ok){msg(esc(r.erreur||"Certificat indisponible."),"err");return;}
+    zone.innerHTML='<p class="ok"><b>🎉 Félicitations ! Tu as les '+r.badges+' badges de '+esc(NOMS[r.niveau]||r.niveau)+'.</b></p>'+
+      '<label for="nom" style="font-weight:600">Nom et prénom à écrire sur le certificat</label><input id="nom" maxlength="60" placeholder="Ex : Camille Martin">'+
+      '<p class="mute" style="font-size:.9rem">Ton nom sert seulement à fabriquer le PDF sur ton appareil : il n’est envoyé nulle part.</p>'+
+      '<button class="btn" id="pdf" type="button">Télécharger mon certificat (PDF)</button><div id="msg" style="margin-top:12px"></div>';
+    document.getElementById("pdf").onclick=function(){var nom=document.getElementById("nom").value.trim();if(!nom){msg("Écris ton nom et prénom.","err");return;}pdf(nom,r);};
+  }).catch(function(){msg("Pas de connexion au serveur. Réessaie dans un instant.","err");});
+};});
+function pdf(nom,r){
+  if(!window.jspdf){msg("Le générateur de PDF n’a pas pu se charger. Vérifie ta connexion.","err");return;}
+  var doc=new window.jspdf.jsPDF({orientation:"landscape",unit:"mm",format:"a4"}),W=297,H=210;
+  doc.setFillColor(27,35,64);doc.rect(0,0,W,H,"F");
+  doc.setFillColor(255,255,255);doc.roundedRect(10,10,W-20,H-20,4,4,"F");
+  doc.setDrawColor(224,177,0);doc.setLineWidth(1.5);doc.roundedRect(16,16,W-32,H-32,3,3,"S");
+  doc.setTextColor(27,35,64);doc.setFont("helvetica","bold");doc.setFontSize(34);doc.text("Certificat de réussite",W/2,52,{align:"center"});
+  doc.setFont("helvetica","normal");doc.setFontSize(15);doc.text("est décerné à",W/2,72,{align:"center"});
+  doc.setFont("helvetica","bold");doc.setFontSize(28);doc.text(nom,W/2,92,{align:"center"});
+  doc.setFont("helvetica","normal");doc.setFontSize(15);
+  doc.text("pour avoir obtenu les "+r.badges+" badges des fiches d'évaluation interactives",W/2,112,{align:"center"});
+  doc.setFont("helvetica","bold");doc.text(NOMS[r.niveau]||r.niveau,W/2,122,{align:"center"});
+  doc.setFont("helvetica","normal");doc.setFontSize(12);
+  doc.text("Délivré le "+r.date+"  ·  Certificat n° "+r.numero,W/2,145,{align:"center"});
+  doc.setFont("helvetica","bold");doc.setFontSize(14);doc.text("M. ZOHDI",W/2,165,{align:"center"});
+  doc.setFont("helvetica","normal");doc.setFontSize(11);doc.text("Chaîne YouTube : Spé physique-chimie avec ZOHDI",W/2,172,{align:"center"});
+  doc.save("certificat_"+r.niveau+"_"+r.numero+".pdf");
+  msg("Ton certificat est téléchargé. Bravo !","ok");
+}
+})();
+</script>
+</body>
+</html>
